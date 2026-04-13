@@ -3,6 +3,7 @@ import { sendCustomerConfirmation, sendAdminAlert } from './smsService.js';
 import { formatE164, isValidPhone } from '../utils/phoneUtils.js';
 import { generateBookingRef } from '../utils/bookingUtils.js';
 import { generateCancelToken } from '../utils/tokenUtils.js';
+import { calculatePrice, formatPrice } from './pricingService.js';
 import { logActivity } from './activityLogger.js';
 
 const MIN_HOURS = 1;
@@ -48,17 +49,34 @@ export async function processCall(message) {
   const structured = analysis?.structuredData ?? {};
   console.info('[bookingService] Structured data received:', structured);
 
+  // Extract vehicle type from structured data (optional field)
+  const vehicleType = structured.vehicleType ?? 'any';
+
   const qualification = qualifyBooking(structured);
   if (qualification.valid) {
-    await handleConfirmedBooking(callRecord, structured, callerPhone);
+    await handleConfirmedBooking(callRecord, structured, callerPhone, vehicleType);
   } else {
     await handleLead(callRecord, structured, callerPhone, qualification.reason);
   }
 }
 
-async function handleConfirmedBooking(callRecord, data, callerPhone) {
+async function handleConfirmedBooking(callRecord, data, callerPhone, vehicleType = 'any') {
   const reference   = generateBookingRef();
   const cancelToken = generateCancelToken();
+
+  // Calculate price from pricing rules
+  const pricing = await calculatePrice({
+    pickupAddress:  data.pickupAddress,
+    dropoffAddress: data.dropoffAddress ?? '',
+    durationHours:  Number(data.durationHours),
+    vehicleType,
+  });
+
+  const quotedPrice    = pricing?.price    ?? null;
+  const quotedCurrency = pricing?.currency ?? 'NGN';
+  const pricingRule    = pricing?.ruleName ?? null;
+
+  console.info(`[bookingService] Price calculated: ${quotedPrice ? formatPrice(quotedPrice, quotedCurrency) : 'No rule matched'}`);
 
   const booking = await createBooking({
     reference,
@@ -70,6 +88,10 @@ async function handleConfirmedBooking(callRecord, data, callerPhone) {
     duration_hours:  Number(data.durationHours),
     status:          'confirmed',
     cancel_token:    cancelToken,
+    quoted_price:    quotedPrice,
+    quoted_currency: quotedCurrency,
+    pricing_rule:    pricingRule,
+    vehicle_type:    vehicleType !== 'any' ? vehicleType : '',
     sms_sent:        false,
     call:            callRecord.id,
   });
@@ -80,7 +102,7 @@ async function handleConfirmedBooking(callRecord, data, callerPhone) {
 
   try {
     await Promise.all([
-      sendCustomerConfirmation({ ...booking, callerPhone, cancelToken }),
+      sendCustomerConfirmation({ ...booking, callerPhone, cancelToken, quotedPrice, quotedCurrency }),
       sendAdminAlert({ ...booking, callerPhone }),
     ]);
     await markSmsSent(booking.id);

@@ -11,8 +11,9 @@ const NAV = [
   { href:'/bookings',  label:'Bookings',      icon:'event_available' },
   { href:'/leads',     label:'Leads',         icon:'contact_phone'   },
   { href:'/calls',     label:'All calls',     icon:'call_log'        },
-  { href:'/activity',  label:'Activity log',  icon:'history'         },
-  { href:'/users',     label:'Users',         icon:'group', adminOnly:true },
+  { href:'/activity',  label:'Activity log',  icon:'history'                 },
+  { href:'/pricing',   label:'Pricing',       icon:'payments', adminOnly:true },
+  { href:'/users',     label:'Users',         icon:'group',    adminOnly:true },
 ];
 
 const PUBLIC_PATHS = ['/login', '/cancel'];

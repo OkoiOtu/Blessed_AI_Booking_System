@@ -8,6 +8,11 @@ const DASH_URL = process.env.DASHBOARD_URL ?? 'https://yourdashboard.com';
 export async function sendCustomerConfirmation(booking) {
   const cancelLink = `${DASH_URL}/cancel/${booking.reference}?token=${booking.cancelToken}`;
 
+  const symbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
+  const priceStr = booking.quotedPrice
+    ? `Price: ${symbols[booking.quotedCurrency] ?? ''}${Number(booking.quotedPrice).toLocaleString()}`
+    : 'Price: To be confirmed';
+
   const body = [
     `Hi ${booking.caller_name}, your booking is confirmed!`,
     `Ref: ${booking.reference}`,
@@ -15,6 +20,7 @@ export async function sendCustomerConfirmation(booking) {
     `From: ${booking.pickup_address}`,
     booking.dropoff_address ? `To: ${booking.dropoff_address}` : null,
     `Duration: ${booking.duration_hours}h`,
+    priceStr,
     `Need to cancel? ${cancelLink}`,
     `Questions? Call us: ${FROM}`,
   ].filter(Boolean).join('\n');

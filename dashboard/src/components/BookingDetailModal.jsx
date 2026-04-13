@@ -5,6 +5,11 @@ import StatusBadge from './StatusBadge';
 export default function BookingDetailModal({ booking, onClose }) {
   if (!booking) return null;
 
+  const symbols = { NGN:'₦', USD:'$', GBP:'£', EUR:'€' };
+  const priceDisplay = booking.quoted_price
+    ? `${symbols[booking.quoted_currency] ?? ''}${Number(booking.quoted_price).toLocaleString()} (${booking.pricing_rule ?? 'matched rule'})`
+    : 'To be confirmed';
+
   const fields = [
     { label:'Reference',      value: booking.reference },
     { label:'Caller name',    value: booking.caller_name },
@@ -13,6 +18,8 @@ export default function BookingDetailModal({ booking, onClose }) {
     { label:'Pickup address', value: booking.pickup_address },
     { label:'Drop-off',       value: booking.dropoff_address || '—' },
     { label:'Duration',       value: formatDuration(booking.duration_hours) },
+    { label:'Vehicle type',   value: booking.vehicle_type   || '—' },
+    { label:'Quoted price',   value: priceDisplay },
     { label:'SMS sent',       value: booking.sms_sent ? 'Yes' : 'No' },
     { label:'Created',        value: formatDatetime(booking.created) },
   ];
