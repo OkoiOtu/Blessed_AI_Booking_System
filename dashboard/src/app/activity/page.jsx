@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import { timeAgo } from '@/lib/formatters';
-import pb from '@/lib/pb';
 
 const ACTION_LABELS = {
   booking_confirmed: { label: 'Booking confirmed',   color: 'var(--accent)',  bg: 'var(--accent-bg)',  icon: 'event_available'  },
@@ -72,14 +71,8 @@ export default function ActivityPage() {
   useEffect(() => {
     mounted.current = true;
     load();
-
-    // Real-time: update when new activity is logged
-    let unsub = () => {};
-    pb.collection('activity_logs').subscribe('*', () => {
-      if (mounted.current) load();
-    }, { requestKey: null }).then(fn => { unsub = fn; }).catch(() => {});
-
-    return () => { mounted.current = false; unsub(); };
+    const interval = setInterval(load, 15000);
+    return () => { mounted.current = false; clearInterval(interval); };
   }, [page, filter]);
 
   const totalPages = Math.ceil(total / PER_PAGE);

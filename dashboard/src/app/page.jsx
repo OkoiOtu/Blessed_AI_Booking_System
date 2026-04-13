@@ -2,7 +2,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { timeAgo } from '@/lib/formatters';
 import StatusBadge from '@/components/StatusBadge';
-import pb from '@/lib/pb';
 
 const STAT_CARDS = [
   { key:'bookings.confirmed', label:'Confirmed',  color:'var(--accent)',  icon:'event_available' },
@@ -17,18 +16,13 @@ const LEAD_CARDS = [
   { key:'leads.closed',   label:'Leads closed',   color:'var(--gray)',   icon:'check_circle'         },
 ];
 
-// Module-level cache — survives page navigation
 let cachedStats  = null;
 let cachedRecent = [];
 
 function getVal(stats, key) {
-  if (!stats) return null; // null = still loading
+  if (!stats) return null;
   const [group, field] = key.split('.');
   return stats?.[group]?.[field] ?? 0;
-}
-
-function Icon({ name }) {
-  return <span className="material-symbols-outlined" style={{ fontSize:20 }}>{name}</span>;
 }
 
 function StatCard({ label, color, icon, value }) {
@@ -38,9 +32,7 @@ function StatCard({ label, color, icon, value }) {
         <p style={{ fontSize:12, color:'var(--muted)', lineHeight:1.4 }}>{label}</p>
         <span className="material-symbols-outlined" style={{ fontSize:18, color, flexShrink:0 }}>{icon}</span>
       </div>
-      <p style={{ fontSize:26, fontWeight:500, color }}>
-        {value === null ? '—' : value}
-      </p>
+      <p style={{ fontSize:26, fontWeight:500, color }}>{value === null ? '—' : value}</p>
     </div>
   );
 }
@@ -52,32 +44,27 @@ export default function OverviewPage() {
   const mounted = useRef(false);
 
   async function load() {
-    if (fetching) return;
+    if (!mounted.current) return;
     setFetching(true);
     try {
       const API = process.env.NEXT_PUBLIC_API_URL;
       if (!API) return;
-
       const [statsRes, rb, rl] = await Promise.all([
         fetch(`${API}/stats`).then(r => { if (!r.ok) throw new Error('stats failed'); return r.json(); }),
         fetch(`${API}/bookings?perPage=5`).then(r => r.json()),
         fetch(`${API}/leads?perPage=5`).then(r => r.json()),
       ]);
-
       if (!mounted.current) return;
-
       const combined = [
         ...(rb.items ?? []).map(i => ({ ...i, _type:'booking' })),
         ...(rl.items ?? []).map(i => ({ ...i, _type:'lead'    })),
       ].sort((a,z) => new Date(z.created)-new Date(a.created)).slice(0,8);
-
       cachedStats  = statsRes;
       cachedRecent = combined;
       setStats(statsRes);
       setRecent(combined);
     } catch (err) {
       console.error('[overview] load failed:', err.message);
-      // Don't clear existing stats on error — keep showing last known values
     } finally {
       if (mounted.current) setFetching(false);
     }
@@ -86,21 +73,15 @@ export default function OverviewPage() {
   useEffect(() => {
     mounted.current = true;
     load();
-
-    let unsubB = ()=>{}, unsubL = ()=>{};
-    pb.collection('bookings').subscribe('*', () => { if (mounted.current) load(); }, { requestKey:null })
-      .then(fn => { unsubB = fn; }).catch(()=>{});
-    pb.collection('leads').subscribe('*', () => { if (mounted.current) load(); }, { requestKey:null })
-      .then(fn => { unsubL = fn; }).catch(()=>{});
-
-    return () => { mounted.current = false; unsubB(); unsubL(); };
+    // Poll every 15 seconds instead of real-time subscriptions
+    const interval = setInterval(load, 15000);
+    return () => { mounted.current = false; clearInterval(interval); };
   }, []);
 
   return (
     <div style={{ width:'100%' }}>
       <h1 style={{ fontSize:20, fontWeight:500, marginBottom:24 }}>Overview</h1>
 
-      {/* Booking stats */}
       <p style={{ fontSize:11, color:'var(--muted)', marginBottom:10, fontWeight:500, textTransform:'uppercase', letterSpacing:'0.06em' }}>Bookings</p>
       <div className="stat-grid-bookings" style={{ marginBottom:24 }}>
         {STAT_CARDS.map(({ key, label, color, icon }) => (
@@ -108,7 +89,6 @@ export default function OverviewPage() {
         ))}
       </div>
 
-      {/* Lead stats */}
       <p style={{ fontSize:11, color:'var(--muted)', marginBottom:10, fontWeight:500, textTransform:'uppercase', letterSpacing:'0.06em' }}>Leads</p>
       <div className="stat-grid-leads" style={{ marginBottom:32 }}>
         {LEAD_CARDS.map(({ key, label, color, icon }) => (
@@ -116,13 +96,11 @@ export default function OverviewPage() {
         ))}
       </div>
 
-      {/* Recent activity */}
       <div style={{ background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
         <div style={{ padding:'14px 20px', borderBottom:'0.5px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <p style={{ fontWeight:500 }}>Recent activity</p>
           {fetching && <span style={{ fontSize:11, color:'var(--muted)' }}>Refreshing...</span>}
         </div>
-
         {recent.length === 0 && !fetching ? (
           <p style={{ padding:'24px 20px', color:'var(--muted)' }}>No activity yet.</p>
         ) : recent.length === 0 ? (

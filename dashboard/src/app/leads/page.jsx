@@ -1,7 +1,6 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import LeadCard from '@/components/LeadCard';
-import pb from '@/lib/pb';
 
 const STATUSES = ['all', 'new', 'reviewed', 'closed'];
 
@@ -11,42 +10,43 @@ export default function LeadsPage() {
   const [filter,  setFilter]  = useState('new');
   const [page,    setPage]    = useState(1);
   const [loading, setLoading] = useState(true);
-
+  const mounted = useRef(false);
   const PER_PAGE = 20;
-  const API = process.env.NEXT_PUBLIC_API_URL;
 
-  const load = useCallback(async () => {
+  async function load() {
+    if (!mounted.current) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, perPage: PER_PAGE });
       if (filter !== 'all') params.set('status', filter);
-      const res  = await fetch(`${API}/leads?${params}`);
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads?${params}`);
       const data = await res.json();
       setLeads(data.items ?? []);
       setTotal(data.totalItems ?? 0);
+    } catch (err) {
+      console.error('[leads] fetch failed:', err.message);
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
-  }, [filter, page]);
+  }
 
   useEffect(() => {
+    mounted.current = true;
     load();
-
-    let unsub;
-    (async () => { unsub = await pb.collection('leads').subscribe('*', () => load()); })();
-    return () => unsub?.();
-  }, [load]);
+    const interval = setInterval(load, 15000);
+    return () => { mounted.current = false; clearInterval(interval); };
+  }, [filter, page]);
 
   const totalPages = Math.ceil(total / PER_PAGE);
 
   return (
-    <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+    <div style={{ width:'100%' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexWrap:'wrap', gap:12 }}>
         <div>
           <h1 style={{ fontSize:20, fontWeight:500 }}>Leads</h1>
           <p style={{ fontSize:13, color:'var(--muted)', marginTop:2 }}>{total} {filter !== 'all' ? filter : 'total'}</p>
         </div>
-        <div style={{ display:'flex', gap:4, background:'var(--bg)', padding:4, borderRadius:'var(--radius)' }}>
+        <div style={{ display:'flex', gap:4, background:'var(--bg)', padding:4, borderRadius:'var(--radius)', flexWrap:'wrap' }}>
           {STATUSES.map(s => (
             <button key={s} onClick={() => { setFilter(s); setPage(1); }} style={{
               border:'none', borderRadius:6, padding:'5px 12px', fontSize:12,
@@ -72,9 +72,9 @@ export default function LeadsPage() {
 
       {totalPages > 1 && (
         <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:20 }}>
-          <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1}>Previous</button>
+          <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1}>Previous</button>
           <span style={{ padding:'6px 12px', fontSize:13, color:'var(--muted)' }}>Page {page} of {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages}>Next</button>
+          <button onClick={() => setPage(p => Math.min(totalPages,p+1))} disabled={page===totalPages}>Next</button>
         </div>
       )}
     </div>

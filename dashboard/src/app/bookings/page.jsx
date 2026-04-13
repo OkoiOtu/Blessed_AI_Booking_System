@@ -2,7 +2,6 @@
 import { useEffect, useState, useRef } from 'react';
 import BookingTable from '@/components/BookingTable';
 import BookingDetailModal from '@/components/BookingDetailModal';
-import pb from '@/lib/pb';
 
 export default function BookingsPage() {
   const [bookings,  setBookings]  = useState([]);
@@ -16,6 +15,7 @@ export default function BookingsPage() {
   const PER_PAGE = 20;
 
   async function load() {
+    if (!mounted.current) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, perPage: PER_PAGE });
@@ -27,20 +27,15 @@ export default function BookingsPage() {
     } catch (err) {
       console.error('[bookings] fetch failed:', err.message);
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
   }
 
   useEffect(() => {
     mounted.current = true;
     load();
-
-    let unsub = () => {};
-    pb.collection('bookings').subscribe('*', () => {
-      if (mounted.current) load();
-    }, { requestKey: null }).then(fn => { unsub = fn; }).catch(() => {});
-
-    return () => { mounted.current = false; unsub(); };
+    const interval = setInterval(load, 15000);
+    return () => { mounted.current = false; clearInterval(interval); };
   }, [page, query]);
 
   function handleSearch(e) {
@@ -52,54 +47,41 @@ export default function BookingsPage() {
   const totalPages = Math.ceil(total / PER_PAGE);
 
   return (
-    <div style={{ width: '100%' }}>
-
+    <div style={{ width:'100%' }}>
       <div className="bookings-header">
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 500 }}>Bookings</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
+          <h1 style={{ fontSize:20, fontWeight:500 }}>Bookings</h1>
+          <p style={{ fontSize:13, color:'var(--muted)', marginTop:2 }}>
             {total} confirmed &nbsp;·&nbsp; double-click a row to view details
           </p>
         </div>
         <form onSubmit={handleSearch} className="bookings-header-right">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+          <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search name, phone, ref..."
-            style={{ padding: '6px 12px', width: 220, fontSize: 13 }}
-          />
+            style={{ padding:'6px 12px', width:220, fontSize:13 }} />
           <button type="submit">Search</button>
         </form>
       </div>
 
-      <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+      <div style={{ background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
         <div className="table-scroll">
           {loading ? (
-            <p style={{ padding: 24, color: 'var(--muted)' }}>Loading...</p>
+            <p style={{ padding:24, color:'var(--muted)' }}>Loading...</p>
           ) : (
-            <BookingTable
-              bookings={bookings}
-              onDoubleClick={b => setDetailing(b)}
-            />
+            <BookingTable bookings={bookings} onDoubleClick={b => setDetailing(b)} />
           )}
         </div>
       </div>
 
       {totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Previous</button>
-          <span style={{ padding: '6px 12px', fontSize: 13, color: 'var(--muted)' }}>Page {page} of {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next</button>
+        <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:16 }}>
+          <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1}>Previous</button>
+          <span style={{ padding:'6px 12px', fontSize:13, color:'var(--muted)' }}>Page {page} of {totalPages}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages,p+1))} disabled={page===totalPages}>Next</button>
         </div>
       )}
 
-      {detailing && (
-        <BookingDetailModal
-          booking={detailing}
-          onClose={() => setDetailing(null)}
-        />
-      )}
-
+      {detailing && <BookingDetailModal booking={detailing} onClose={() => setDetailing(null)} />}
     </div>
   );
 }
