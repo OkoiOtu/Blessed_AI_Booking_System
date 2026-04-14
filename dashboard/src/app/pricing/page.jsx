@@ -130,7 +130,7 @@ function RuleForm({ initial, onSave, onCancel, saving, error }) {
 
 export default function PricingPage() {
   const { user } = useAuth();
-  const isAdmin  = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const [rules,   setRules]   = useState([]);
   const [loading, setLoading] = useState(true);

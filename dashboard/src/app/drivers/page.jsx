@@ -199,7 +199,7 @@ function AssignModal({ booking, drivers, onAssign, onClose }) {
 
 export default function DriversPage() {
   const { user } = useAuth();
-  const isAdmin  = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const [drivers,    setDrivers]    = useState([]);
   const [bookings,   setBookings]   = useState([]);
