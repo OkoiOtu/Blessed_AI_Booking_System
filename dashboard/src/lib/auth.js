@@ -87,3 +87,8 @@ export function getDisplayName(user) {
   if (!user) return '';
   return user.full_name || user.email || '';
 }
+
+// Returns true if user has admin-level access (admin or super_admin)
+export function isAdminUser(user) {
+  return user?.role === 'admin' || user?.role === 'super_admin';
+}

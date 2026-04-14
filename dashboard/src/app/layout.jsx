@@ -119,7 +119,7 @@ function SidebarContent({ collapsed, theme, toggleTheme, user, onSignOut, onNavC
 
       {/* Nav links */}
       <nav style={{ flex:1, padding: collapsed ? '8px 6px' : '8px 8px', display:'flex', flexDirection:'column', gap:2, overflowY:'auto' }}>
-        {NAV.filter(n => !n.adminOnly || user?.role === 'admin').map(({ href, label, icon }) => {
+        {NAV.filter(n => !n.adminOnly || user?.role === 'admin' || user?.role === 'super_admin').map(({ href, label, icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
             <NavItem key={href} href={href} label={label} icon={icon} active={active} collapsed={collapsed} onClick={onNavClick} />

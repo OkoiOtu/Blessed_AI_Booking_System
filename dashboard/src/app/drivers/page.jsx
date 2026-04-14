@@ -215,9 +215,14 @@ export default function DriversPage() {
   async function loadDrivers() {
     setLoading(true);
     try {
-      const q   = filter !== 'all' ? `?status=${filter}` : '';
-      const res = await fetch(`${API()}/drivers${q}`);
-      setDrivers(await res.json());
+      const q    = filter !== 'all' ? `?status=${filter}` : '';
+      const res  = await fetch(`${API()}/drivers${q}`);
+      const data = await res.json();
+      // Always set an array — guard against error objects or non-array responses
+      setDrivers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('[drivers] loadDrivers failed:', err.message);
+      setDrivers([]);
     } finally { setLoading(false); }
   }
 

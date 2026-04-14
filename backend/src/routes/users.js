@@ -29,7 +29,7 @@ router.post('/', async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
     const user = await pb.collection('users').create({
       email, password, passwordConfirm: password,
-      full_name: full_name ?? '', role: role ?? 'user',
+      full_name: full_name ?? '', role: ['super_admin','admin','user'].includes(role) ? role : 'user',
       suspended: false, emailVisibility: true,
     });
     res.json({ id: user.id, email: user.email, full_name: user.full_name, role: user.role });
