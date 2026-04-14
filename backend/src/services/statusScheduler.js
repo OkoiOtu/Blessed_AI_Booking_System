@@ -1,5 +1,6 @@
 import { getClient } from './pbService.js';
 import { logActivity } from './activityLogger.js';
+import { syncDriverStatuses } from './driverService.js';
 
 /**
  * Runs every 60 seconds and auto-advances booking statuses:
@@ -60,6 +61,9 @@ async function tick() {
         console.info(`[scheduler] ${b.reference} → completed`);
       }
     }
+
+    // Sync driver statuses with booking statuses
+    await syncDriverStatuses();
 
   } catch (err) {
     console.error('[scheduler] tick error:', err.message);

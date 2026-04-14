@@ -13,6 +13,8 @@ const ACTION_LABELS = {
   login_locked:      { label: 'Account locked',      color: 'var(--red)',     bg: 'var(--red-bg)',     icon: 'lock'             },
   login_suspended:   { label: 'Suspended attempted', color: 'var(--amber)',   bg: 'var(--amber-bg)',   icon: 'block'            },
   logout:            { label: 'Logout',              color: 'var(--gray)',    bg: 'var(--gray-bg)',    icon: 'logout'           },
+  driver_assigned:   { label: 'Driver assigned',    color: 'var(--blue)',    bg: 'var(--blue-bg)',    icon: 'assignment_ind'   },
+  driver_unassigned: { label: 'Driver unassigned',  color: 'var(--gray)',    bg: 'var(--gray-bg)',    icon: 'person_remove'    },
 };
 
 const FILTERS = [

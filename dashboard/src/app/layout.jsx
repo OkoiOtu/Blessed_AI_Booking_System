@@ -12,6 +12,7 @@ const NAV = [
   { href:'/leads',     label:'Leads',         icon:'contact_phone'   },
   { href:'/calls',     label:'All calls',     icon:'call_log'        },
   { href:'/activity',  label:'Activity log',  icon:'history'                 },
+  { href:'/drivers',   label:'Drivers',       icon:'airline_seat_recline_normal' },
   { href:'/pricing',   label:'Pricing',       icon:'payments', adminOnly:true },
   { href:'/users',     label:'Users',         icon:'group',    adminOnly:true },
 ];

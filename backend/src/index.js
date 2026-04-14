@@ -8,6 +8,7 @@ import usersRouter    from './routes/users.js';
 import activityRouter from './routes/activity.js';
 import statsRouter    from './routes/stats.js';
 import pricingRouter   from './routes/pricing.js';
+import driversRouter   from './routes/drivers.js';
 import { startStatusScheduler } from './services/statusScheduler.js';
 import { getClient, startTokenRefresh } from './services/pbService.js';
 
@@ -33,6 +34,7 @@ app.use('/users',    usersRouter);
 app.use('/activity', activityRouter);
 app.use('/stats',    statsRouter);
 app.use('/pricing',  pricingRouter);
+app.use('/drivers',  driversRouter);
 
 app.listen(PORT, async () => {
   console.info(`[server] Running on port ${PORT}`);
