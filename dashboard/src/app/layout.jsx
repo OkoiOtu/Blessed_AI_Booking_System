@@ -13,7 +13,9 @@ const NAV = [
   { href:'/calls',     label:'All calls',     icon:'call_log'                      },
   { href:'/calendar',  label:'Calendar',      icon:'calendar_month'                 },
   { href:'/customers', label:'Customers',     icon:'person_search'                  },
-  { href:'/activity',  label:'Activity log',  icon:'history'                        },
+  { href:'/revenue',   label:'Revenue',      icon:'bar_chart' },
+  { href:'/activity',  label:'Activity log', icon:'history'   },
+
   { href:'/drivers',   label:'Drivers',       icon:'airline_seat_recline_normal' },
   { href:'/pricing',   label:'Pricing',       icon:'payments'                    },
   { href:'/users',     label:'Users',         icon:'group',  adminOnly:true      },
@@ -146,12 +148,26 @@ function SidebarContent({ collapsed, theme, toggleTheme, user, onSignOut, onNavC
           )}
         </div>
 
-        <SideBtn
-          icon={theme==='light' ? 'dark_mode' : 'light_mode'}
-          label={theme==='light' ? 'Dark mode' : 'Light mode'}
-          collapsed={collapsed} onClick={toggleTheme}
-          style={{ color:'var(--muted)', border:'0.5px solid var(--border)', borderRadius:'var(--radius)' }}
-        />
+        <Link
+          href="/settings"
+          title={collapsed ? 'Settings' : ''}
+          style={{
+            display:'flex', alignItems:'center',
+            gap: collapsed ? 0 : 8,
+            padding: collapsed ? '9px 0' : '9px 10px',
+            justifyContent:'center',
+            borderRadius:'var(--radius)',
+            fontSize:13, width:'100%', minHeight:40,
+            color:'var(--muted)', border:'0.5px solid var(--border)',
+            textDecoration:'none', transition:'opacity 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity='0.8'}
+          onMouseLeave={e => e.currentTarget.style.opacity='1'}
+        >
+          <Icon name="settings" size={20} />
+          {!collapsed && <span style={{ marginLeft:2 }}>Settings</span>}
+        </Link>
+
         <SideBtn
           icon="logout" label="Sign out"
           collapsed={collapsed} onClick={onSignOut}
@@ -292,9 +308,9 @@ function Shell({ children }) {
               <Icon name="menu" size={22} />
             </button>
             <p style={{ fontSize:14, fontWeight:500 }}>AI Booking</p>
-            <button onClick={toggleTheme} style={{ border:'none', background:'none', padding:'6px', display:'flex', alignItems:'center', color:'var(--muted)' }}>
-              <Icon name={theme==='light' ? 'dark_mode' : 'light_mode'} size={20} />
-            </button>
+            <Link href="/settings" style={{ border:'none', background:'none', padding:'6px', display:'flex', alignItems:'center', color:'var(--muted)', textDecoration:'none' }}>
+              <Icon name="settings" size={20} />
+            </Link>
           </div>
         )}
 

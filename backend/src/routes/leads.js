@@ -6,8 +6,12 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const pb = await getClient();
-    const { page = 1, perPage = 20, status = '' } = req.query;
-    const filter = status ? `status = "${status}"` : '';
+    const { page = 1, perPage = 20, status = '', fromDate = '', toDate = '' } = req.query;
+    const filters = [];
+    if (status)   filters.push(`status = "${status}"`);
+    if (fromDate) filters.push(`created >= "${fromDate} 00:00:00"`);
+    if (toDate)   filters.push(`created <= "${toDate} 23:59:59"`);
+    const filter = filters.join(' && ');
     const result = await pb.collection('leads').getList(Number(page), Number(perPage), {
       filter, sort: '-created', expand: 'call', requestKey: null,
     });

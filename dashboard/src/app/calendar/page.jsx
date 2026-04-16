@@ -115,7 +115,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Calendar grid */}
-      <div style={{ background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
+      <div style={{ background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:'var(--radius-lg)', overflow:'hidden', maxHeight:'calc(100vh - 260px)', overflowY:'auto' }}>
 
         {/* Day headers */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:'0.5px solid var(--border)' }}>
@@ -139,7 +139,7 @@ export default function CalendarPage() {
 
               return (
                 <div key={i} style={{
-                  minHeight:100,
+                  minHeight:72,
                   padding:'6px 4px',
                   borderRight: (i+1) % 7 !== 0 ? '0.5px solid var(--border)' : 'none',
                   borderBottom: i < totalCells - 7 ? '0.5px solid var(--border)' : 'none',

@@ -74,6 +74,14 @@ export default function CustomersPage() {
 
       {loading && <p style={{ color:'var(--muted)' }}>Searching...</p>}
 
+      {results !== null && !loading && results.length > 0 && (
+        <button onClick={() => window.open(process.env.NEXT_PUBLIC_API_URL + '/export/customers')}
+          style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, marginBottom:16 }}>
+          <span className="material-symbols-outlined" style={{ fontSize:15 }}>download</span>
+          Export all customers CSV
+        </button>
+      )}
+
       {results !== null && !loading && (
         <>
           {results.length === 0 ? (

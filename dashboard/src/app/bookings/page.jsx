@@ -3,12 +3,17 @@ import { useEffect, useState, useRef } from 'react';
 import BookingTable from '@/components/BookingTable';
 import BookingDetailModal from '@/components/BookingDetailModal';
 
+const API = () => process.env.NEXT_PUBLIC_API_URL;
+
 export default function BookingsPage() {
+  const today    = new Date().toISOString().slice(0,10);
   const [bookings,  setBookings]  = useState([]);
   const [total,     setTotal]     = useState(0);
   const [page,      setPage]      = useState(1);
   const [search,    setSearch]    = useState('');
   const [query,     setQuery]     = useState('');
+  const [fromDate,  setFromDate]  = useState('');
+  const [toDate,    setToDate]    = useState('');
   const [loading,   setLoading]   = useState(true);
   const [detailing, setDetailing] = useState(null);
   const mounted = useRef(false);
@@ -19,8 +24,10 @@ export default function BookingsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, perPage: PER_PAGE });
-      if (query) params.set('search', query);
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings?${params}`);
+      if (query)    params.set('search', query);
+      if (fromDate) params.set('fromDate', fromDate);
+      if (toDate)   params.set('toDate', toDate);
+      const res  = await fetch(`${API()}/bookings?${params}`);
       const data = await res.json();
       setBookings(data.items ?? []);
       setTotal(data.totalItems ?? 0);
@@ -36,12 +43,20 @@ export default function BookingsPage() {
     load();
     const interval = setInterval(load, 15000);
     return () => { mounted.current = false; clearInterval(interval); };
-  }, [page, query]);
+  }, [page, query, fromDate, toDate]);
 
   function handleSearch(e) {
     e.preventDefault();
     setPage(1);
     setQuery(search);
+  }
+
+  function downloadCSV() {
+    const params = new URLSearchParams();
+    if (query)    params.set('search', query);
+    if (fromDate) params.set('fromDate', fromDate);
+    if (toDate)   params.set('toDate', toDate);
+    window.open(`${API()}/export/bookings?${params}`);
   }
 
   const totalPages = Math.ceil(total / PER_PAGE);
@@ -52,15 +67,31 @@ export default function BookingsPage() {
         <div>
           <h1 style={{ fontSize:20, fontWeight:500 }}>Bookings</h1>
           <p style={{ fontSize:13, color:'var(--muted)', marginTop:2 }}>
-            {total} confirmed &nbsp;·&nbsp; double-click a row to view details
+            {total} records &nbsp;·&nbsp; double-click a row to view details
           </p>
         </div>
-        <form onSubmit={handleSearch} className="bookings-header-right">
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search name, phone, ref..."
-            style={{ padding:'6px 12px', width:220, fontSize:13 }} />
-          <button type="submit">Search</button>
-        </form>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+          <form onSubmit={handleSearch} style={{ display:'flex', gap:6 }}>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search name, phone, ref..."
+              style={{ padding:'6px 12px', width:200, fontSize:13 }} />
+            <button type="submit">Search</button>
+          </form>
+          <button onClick={downloadCSV} style={{ display:'flex', alignItems:'center', gap:5, fontSize:13 }}>
+            <span className="material-symbols-outlined" style={{ fontSize:15 }}>download</span>CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Date filter */}
+      <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:16, flexWrap:'wrap' }}>
+        <span style={{ fontSize:13, color:'var(--muted)' }}>Filter by pickup date:</span>
+        <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} style={{ padding:'5px 10px', fontSize:13 }} />
+        <span style={{ fontSize:13, color:'var(--muted)' }}>to</span>
+        <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} style={{ padding:'5px 10px', fontSize:13 }} />
+        {(fromDate || toDate) && (
+          <button onClick={() => { setFromDate(''); setToDate(''); setPage(1); }} style={{ fontSize:12, padding:'5px 10px' }}>Clear filter</button>
+        )}
       </div>
 
       <div style={{ background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
@@ -81,7 +112,9 @@ export default function BookingsPage() {
         </div>
       )}
 
-      {detailing && <BookingDetailModal booking={detailing} onClose={() => setDetailing(null)} />}
+      {detailing && (
+        <BookingDetailModal booking={detailing} onClose={() => setDetailing(null)} onCancelled={load} />
+      )}
     </div>
   );
 }

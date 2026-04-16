@@ -1,9 +1,12 @@
 'use client';
+import { useState } from 'react';
 import { formatDatetime, formatDuration, formatPhone } from '@/lib/formatters';
 import StatusBadge from './StatusBadge';
 
-export default function BookingDetailModal({ booking, onClose }) {
-  if (!booking) return null;
+export default function BookingDetailModal({ booking, onClose, onCancelled }) {
+  const [cancelling,        setCancelling]        = useState(false);
+  const [cancelError,       setCancelError]       = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const symbols = { NGN:'₦', USD:'$', GBP:'£', EUR:'€' };
   const priceDisplay = booking.quoted_price
@@ -23,6 +26,26 @@ export default function BookingDetailModal({ booking, onClose }) {
     { label:'SMS sent',       value: booking.sms_sent ? 'Yes' : 'No' },
     { label:'Created',        value: formatDatetime(booking.created) },
   ];
+
+  async function cancelBooking() {
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const url  = process.env.NEXT_PUBLIC_API_URL + '/bookings/' + booking.id + '/cancel';
+      const res  = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ actor: 'admin' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCancelError(data.error ?? 'Failed to cancel'); return; }
+      setShowCancelConfirm(false);
+      onCancelled?.();
+      onClose();
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   return (
     <>
@@ -55,7 +78,24 @@ export default function BookingDetailModal({ booking, onClose }) {
           ))}
         </div>
 
-        <div style={{ marginTop:20, display:'flex', justifyContent:'flex-end' }}>
+        <div style={{ marginTop:20, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+          <div>
+            {!['completed','cancelled'].includes(booking.status) && !showCancelConfirm && (
+              <button onClick={() => setShowCancelConfirm(true)} className="danger" style={{ fontSize:12 }}>
+                Cancel booking
+              </button>
+            )}
+            {showCancelConfirm && (
+              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                <span style={{ fontSize:13, color:'var(--red)' }}>Cancel {booking.reference}?</span>
+                <button onClick={cancelBooking} className="danger" disabled={cancelling} style={{ fontSize:12 }}>
+                  {cancelling ? 'Cancelling...' : 'Yes, cancel'}
+                </button>
+                <button onClick={() => setShowCancelConfirm(false)} style={{ fontSize:12 }}>No</button>
+              </div>
+            )}
+            {cancelError && <p style={{ fontSize:12, color:'var(--red)', marginTop:4 }}>{cancelError}</p>}
+          </div>
           <button onClick={onClose}>Close</button>
         </div>
       </div>
