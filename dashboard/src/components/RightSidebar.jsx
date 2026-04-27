@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { timeAgo } from '@/lib/formatters';
 import StatusBadge from './StatusBadge';
+import { api } from '@/lib/api';
 
 export default function RightSidebar() {
   const [items,   setItems]   = useState([]);
@@ -11,11 +12,9 @@ export default function RightSidebar() {
   async function load() {
     if (!mounted.current) return;
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL;
-      if (!API) return;
       const [b, l] = await Promise.all([
-        fetch(`${API}/bookings?perPage=6`).then(r => r.json()),
-        fetch(`${API}/leads?perPage=4&status=new`).then(r => r.json()),
+        api('/bookings?perPage=6').then(r => r.json()),
+        api('/leads?perPage=4&status=new').then(r => r.json()),
       ]);
       const combined = [
         ...(b.items ?? []).map(i => ({ ...i, _type:'booking' })),

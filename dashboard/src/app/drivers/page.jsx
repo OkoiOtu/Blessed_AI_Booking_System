@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
+import PlanGate from '@/components/PlanGate';
 import { useAuth } from '@/lib/auth';
 import { formatDatetime } from '@/lib/formatters';
-
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import { api } from '@/lib/api';
 
 const STATUS_META = {
   available: { label:'Available',  bg:'var(--green-bg)',  color:'var(--green)',  icon:'check_circle'   },
@@ -117,8 +117,8 @@ function AssignModal({ booking, drivers, onAssign, onClose }) {
     if (!selected) return;
     setSaving(true); setError(''); setConflict(null);
     try {
-      const res  = await fetch(`${API()}/drivers/assign`, {
-        method: 'POST', headers: { 'Content-Type':'application/json' },
+      const res  = await api('/drivers/assign', {
+        method: 'POST',
         body: JSON.stringify({ bookingId: booking.id, driverId: selected }),
       });
       const data = await res.json();
@@ -216,7 +216,7 @@ export default function DriversPage() {
     setLoading(true);
     try {
       const q    = filter !== 'all' ? `?status=${filter}` : '';
-      const res  = await fetch(`${API()}/drivers${q}`);
+      const res  = await api(`/drivers${q}`);
       const data = await res.json();
       // Always set an array — guard against error objects or non-array responses
       setDrivers(Array.isArray(data) ? data : []);
@@ -228,7 +228,7 @@ export default function DriversPage() {
 
   async function loadBookings() {
     try {
-      const res  = await fetch(`${API()}/bookings?perPage=50`);
+      const res  = await api('/bookings?perPage=50');
       const data = await res.json();
       setBookings(data.items ?? []);
     } catch {}
@@ -244,8 +244,8 @@ export default function DriversPage() {
   async function createDriver(form) {
     setSaving(true); setError('');
     try {
-      const res  = await fetch(`${API()}/drivers`, {
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form),
+      const res  = await api('/drivers', {
+        method: 'POST', body: JSON.stringify(form),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Failed to create driver'); return; }
@@ -256,8 +256,8 @@ export default function DriversPage() {
   async function updateDriver(form) {
     setSaving(true); setError('');
     try {
-      const res  = await fetch(`${API()}/drivers/${editTarget.id}`, {
-        method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form),
+      const res  = await api(`/drivers/${editTarget.id}`, {
+        method: 'PATCH', body: JSON.stringify(form),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Failed to update driver'); return; }
@@ -267,14 +267,13 @@ export default function DriversPage() {
 
   async function deactivateDriver(driver) {
     if (!confirm(`Remove ${driver.full_name}? They will no longer appear in the system.`)) return;
-    await fetch(`${API()}/drivers/${driver.id}`, { method:'DELETE' });
+    await api(`/drivers/${driver.id}`, { method: 'DELETE' });
     loadDrivers();
   }
 
   async function unassign(bookingId) {
-    await fetch(`${API()}/drivers/unassign`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ bookingId }),
+    await api('/drivers/unassign', {
+      method: 'POST', body: JSON.stringify({ bookingId }),
     });
     loadBookings(); loadDrivers();
   }
@@ -284,7 +283,9 @@ export default function DriversPage() {
   );
 
   return (
+    <PlanGate feature="drivers">
     <div style={{ width:'100%' }}>
+
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24, gap:12, flexWrap:'wrap' }}>
         <div>
           <h1 style={{ fontSize:20, fontWeight:500 }}>Drivers</h1>
@@ -388,7 +389,7 @@ export default function DriversPage() {
                       <button
                         onClick={() => {
                           const next = driver.status === 'off_duty' ? 'available' : 'off_duty';
-                          fetch(`${API()}/drivers/${driver.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ status:next }) }).then(loadDrivers);
+                          api(`/drivers/${driver.id}`, { method:'PATCH', body:JSON.stringify({ status:next }) }).then(loadDrivers);
                         }}
                         style={{ fontSize:12, padding:'4px 10px',
                           background: driver.status==='off_duty' ? 'var(--green-bg)' : 'var(--gray-bg)',
@@ -503,5 +504,6 @@ export default function DriversPage() {
         />
       )}
     </div>
+    </PlanGate>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import PlanGate, { BookingLimitBanner } from '@/components/PlanGate';
+import { api } from '@/lib/api';
 const SYMBOLS = { NGN:'₦', USD:'$', GBP:'£', EUR:'€' };
 
 function fmt(amount, currency='NGN') {
@@ -21,7 +21,7 @@ export default function RevenuePage() {
   async function load() {
     setLoading(true);
     try {
-      const res  = await fetch(`${API()}/revenue?period=${period}`);
+      const res  = await api(`/revenue?period=${period}`);
       const json = await res.json();
       setAll(json.data ?? []);
     } catch (err) {
@@ -58,6 +58,7 @@ export default function RevenuePage() {
   }
 
   return (
+    <PlanGate feature="revenue">
     <div style={{ width:'100%' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, flexWrap:'wrap', gap:12 }}>
         <div>
@@ -173,5 +174,6 @@ export default function RevenuePage() {
         </div>
       )}
     </div>
+    </PlanGate>
   );
 }

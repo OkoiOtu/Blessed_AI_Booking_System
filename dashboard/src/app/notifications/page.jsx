@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import { api } from '@/lib/api';
 
 const SETTINGS_CONFIG = [
   {
@@ -53,7 +53,7 @@ export default function NotificationsPage() {
 
   async function load() {
     try {
-      const res  = await fetch(`${API()}/notifications/settings`);
+      const res  = await api(`/notifications/settings`);
       const data = await res.json();
       setSettings(data);
     } catch (err) {
@@ -72,7 +72,7 @@ export default function NotificationsPage() {
   async function save() {
     setSaving(true); setError(''); setSaved(false);
     try {
-      const res  = await fetch(`${API()}/notifications/settings`, {
+      const res  = await api(`/notifications/settings`, {
         method: 'PATCH', headers: { 'Content-Type':'application/json' },
         body: JSON.stringify(settings),
       });

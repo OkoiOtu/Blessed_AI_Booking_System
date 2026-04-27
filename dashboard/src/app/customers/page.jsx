@@ -3,8 +3,7 @@ import { useState } from 'react';
 import { formatDatetime, formatDuration } from '@/lib/formatters';
 import StatusBadge from '@/components/StatusBadge';
 import BookingDetailModal from '@/components/BookingDetailModal';
-
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import { api } from '@/lib/api';
 
 const CURRENCY_SYMBOLS = { NGN:'₦', USD:'$', GBP:'£', EUR:'€' };
 
@@ -23,7 +22,7 @@ export default function CustomersPage() {
     setLoading(true);
     setResults(null);
     try {
-      const res  = await fetch(`${API()}/bookings?perPage=200&search=${encodeURIComponent(q)}`);
+      const res  = await api(`/bookings?perPage=200&search=${encodeURIComponent(q)}`);
       const data = await res.json();
       setResults(data.items ?? []);
     } catch (err) {
@@ -75,7 +74,7 @@ export default function CustomersPage() {
       {loading && <p style={{ color:'var(--muted)' }}>Searching...</p>}
 
       {results !== null && !loading && results.length > 0 && (
-        <button onClick={() => window.open(process.env.NEXT_PUBLIC_API_URL + '/export/customers')}
+        <button onClick={async () => { const r = await api('/export/customers'); const b = await r.blob(); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href=u; a.download='customers.csv'; a.click(); URL.revokeObjectURL(u); }}
           style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, marginBottom:16 }}>
           <span className="material-symbols-outlined" style={{ fontSize:15 }}>download</span>
           Export all customers CSV

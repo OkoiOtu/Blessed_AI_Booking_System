@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
+import PlanGate from '@/components/PlanGate';
+
+import { api } from '@/lib/api';
 
 const MAX_USERS = 10;
-const API = () => process.env.NEXT_PUBLIC_API_URL;
 
 const ROLE_META = {
   super_admin: { label:'Super admin', bg:'var(--purple-bg)', color:'var(--purple)' },
@@ -45,9 +47,12 @@ function UserForm({ initial, onSave, onCancel, saving, error, isEdit, canSetSupe
   const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
   const s = { width:'100%', padding:'7px 10px', fontSize:13 };
 
+  // Role options based on creator's role
   const roleOptions = canSetSuperAdmin
     ? [['super_admin','Super admin'],['admin','Admin'],['user','User']]
-    : [['admin','Admin'],['user','User']];
+    : currentUser?.role === 'super_admin'
+      ? [['admin','Admin'],['user','User']]
+      : [['user','User']];
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSave(form); }} style={{ display:'flex', flexDirection:'column', gap:12 }}>
@@ -90,8 +95,8 @@ function UserForm({ initial, onSave, onCancel, saving, error, isEdit, canSetSupe
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
 
-  const isSuperAdmin = currentUser?.role === 'super_admin';
-  const isAdmin      = currentUser?.role === 'admin' || isSuperAdmin;
+  const isSuperAdmin = ['super_admin','author'].includes(currentUser?.role);
+  const isAdmin      = ['admin','super_admin','author'].includes(currentUser?.role);
 
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -106,7 +111,7 @@ export default function UsersPage() {
   async function load() {
     setLoading(true);
     try {
-      const res  = await fetch(`${API()}/users`);
+      const res  = await api(`/users`);
       const data = await res.json();
       setUsers(data.items ?? []);
     } catch (err) {
@@ -119,7 +124,7 @@ export default function UsersPage() {
   async function createUser(form) {
     setSaving(true); setError('');
     try {
-      const res = await fetch(`${API()}/users`, {
+      const res = await api(`/users`, {
         method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form),
       });
       const data = await res.json();
@@ -135,7 +140,7 @@ export default function UsersPage() {
       if (form.full_name !== undefined) payload.full_name = form.full_name;
       if (form.email)                   payload.email     = form.email;
       if (form.role)                    payload.role      = form.role;
-      const res = await fetch(`${API()}/users/${editTarget.id}`, {
+      const res = await api(`/users/${editTarget.id}`, {
         method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
       });
       const data = await res.json();
@@ -147,7 +152,7 @@ export default function UsersPage() {
   }
 
   async function confirmSuspend(u) {
-    await fetch(`${API()}/users/${u.id}`, {
+    await api(`/users/${u.id}`, {
       method:'PATCH', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ suspended: !u.suspended }),
     });
@@ -155,21 +160,24 @@ export default function UsersPage() {
   }
 
   async function confirmDelete(u) {
-    await fetch(`${API()}/users/${u.id}`, { method:'DELETE' });
+    await api(`/users/${u.id}`, { method:'DELETE' });
     setConfirmDialog(null); load();
   }
 
   // Can the current user act on target user?
   function canActOn(target) {
-    if (target.id === currentUser?.id) return false; // never act on yourself
-    if (target.role === 'super_admin') return false; // super_admin is protected
-    if (isSuperAdmin) return true;                   // super_admin can act on anyone else
-    if (isAdmin && target.role === 'user') return true; // admin can act on users only
+    if (!target) return false;
+    if (target.id === currentUser?.id) return false;           // never act on yourself
+    if (target.role === 'super_admin') return false;           // super_admin protected
+    if (target.role === 'author') return false;                // author always protected
+    if (currentUser?.role === 'super_admin') return true;      // super_admin can act on admin+user
+    if (currentUser?.role === 'admin' && target.role === 'user') return true; // admin → user only
     return false;
   }
 
   return (
-    <div style={{ maxWidth:860, margin:'0 auto' }}>
+    <PlanGate feature="users">
+    <div style={{ maxWidth:760, margin:'0 auto' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
         <div>
           <h1 style={{ fontSize:20, fontWeight:500 }}>Users</h1>
@@ -290,7 +298,7 @@ export default function UsersPage() {
             initial={emptyForm} onSave={createUser}
             onCancel={() => setShowAdd(false)}
             saving={saving} error={error} isEdit={false}
-            canSetSuperAdmin={isSuperAdmin}
+            canSetSuperAdmin={currentUser?.role === 'author'}
           />
         </Modal>
       )}
@@ -302,7 +310,7 @@ export default function UsersPage() {
             initial={{ full_name:editTarget.full_name??'', email:editTarget.email, role:editTarget.role??'user', password:'' }}
             onSave={updateUser} onCancel={() => setEditTarget(null)}
             saving={saving} error={error} isEdit={true}
-            canSetSuperAdmin={isSuperAdmin}
+            canSetSuperAdmin={currentUser?.role === 'author'}
           />
         </Modal>
       )}
@@ -330,5 +338,6 @@ export default function UsersPage() {
         />
       )}
     </div>
+    </PlanGate>
   );
 }

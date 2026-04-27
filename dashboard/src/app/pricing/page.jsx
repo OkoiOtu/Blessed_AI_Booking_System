@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
+import PlanGate from '@/components/PlanGate';
 import { useAuth } from '@/lib/auth';
 
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import { api } from '@/lib/api';
 
 const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR'];
 const VEHICLES   = ['any', 'sedan', 'suv', 'van', 'bus'];
@@ -142,7 +143,7 @@ export default function PricingPage() {
   async function load() {
     setLoading(true);
     try {
-      const res  = await fetch(`${API()}/pricing`);
+      const res  = await api(`/pricing`);
       const data = await res.json();
       setRules(Array.isArray(data) ? data : []);
     } finally {
@@ -155,7 +156,7 @@ export default function PricingPage() {
   async function createRule(form) {
     setSaving(true); setError('');
     try {
-      const res = await fetch(`${API()}/pricing`, {
+      const res = await api(`/pricing`, {
         method: 'POST', headers: { 'Content-Type':'application/json' },
         body: JSON.stringify({
           ...form,
@@ -172,7 +173,7 @@ export default function PricingPage() {
   async function updateRule(form) {
     setSaving(true); setError('');
     try {
-      const res = await fetch(`${API()}/pricing/${editTarget.id}`, {
+      const res = await api(`/pricing/${editTarget.id}`, {
         method: 'PATCH', headers: { 'Content-Type':'application/json' },
         body: JSON.stringify({
           ...form,
@@ -187,7 +188,7 @@ export default function PricingPage() {
   }
 
   async function toggleActive(rule) {
-    await fetch(`${API()}/pricing/${rule.id}`, {
+    await api(`/pricing/${rule.id}`, {
       method: 'PATCH', headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({ active: !rule.active }),
     });
@@ -196,12 +197,13 @@ export default function PricingPage() {
 
   async function deleteRule(rule) {
     if (!confirm(`Delete "${rule.name}"? This cannot be undone.`)) return;
-    await fetch(`${API()}/pricing/${rule.id}`, { method: 'DELETE' });
+    await api(`/pricing/${rule.id}`, { method: 'DELETE' });
     load();
   }
 
   return (
-    <div style={{ width:'100%' }}>
+  <PlanGate feature="pricing">
+    <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24, gap:12, flexWrap:'wrap' }}>
         <div>
           <h1 style={{ fontSize:20, fontWeight:500 }}>Pricing rules</h1>
@@ -337,5 +339,6 @@ export default function PricingPage() {
         </Modal>
       )}
     </div>
+  </PlanGate>
   );
 }

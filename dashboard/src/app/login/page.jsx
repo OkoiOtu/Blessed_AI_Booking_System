@@ -114,11 +114,16 @@ export default function LoginPage() {
     try {
       await login(email, password);
       clearLockoutState(email);
-      router.replace('/');
+      router.replace('/dashboard');
     } catch (err) {
       // Suspended users get a clear message, no lockout counter
       if (err.message === 'SUSPENDED') {
         setError('This account has been suspended. Please contact your administrator.');
+        setLoading(false);
+        return;
+      }
+      if (err.message === 'UNVERIFIED') {
+        setError('Please verify your email before signing in. Check your inbox for the verification link.');
         setLoading(false);
         return;
       }
@@ -154,71 +159,106 @@ export default function LoginPage() {
   const isLocked = lockInfo && lockInfo.lockedUntil > Date.now();
 
   return (
-    <div style={{
-      minHeight:'100vh', display:'flex',
-      alignItems:'center', justifyContent:'center',
-      background:'var(--bg)',
-    }}>
-      <div style={{
-        background:'var(--surface)', border:'0.5px solid var(--border)',
-        borderRadius:'var(--radius-lg)', padding:'40px 36px',
-        width:'100%', maxWidth:380,
-      }}>
-        <div style={{ marginBottom:28 }}>
-          <p style={{ fontSize:18, fontWeight:500 }}>AI Booking System</p>
-          <p style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Sign in to your account</p>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
+        .lp-login-input { background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.12) !important; color: #fff !important; border-radius: 10px !important; padding: 11px 14px !important; font-family: 'DM Sans', sans-serif !important; font-size: 14px !important; transition: border-color 0.2s; }
+        .lp-login-input:focus { border-color: rgba(108,99,255,0.6) !important; outline: none !important; }
+        .lp-login-input::placeholder { color: rgba(255,255,255,0.25) !important; }
+        .lp-login-input:disabled { opacity: 0.5; }
+      `}</style>
+
+      <div style={{ minHeight:'100vh', background:'#0a0a0f', color:'#fff', fontFamily:'DM Sans, sans-serif', display:'flex', flexDirection:'column' }}>
+
+        {/* Grid bg */}
+        <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none', backgroundImage:'linear-gradient(rgba(108,99,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(108,99,255,0.04) 1px,transparent 1px)', backgroundSize:'60px 60px' }} />
+
+        {/* Glow orb */}
+        <div style={{ position:'fixed', width:400, height:400, borderRadius:'50%', background:'rgba(108,99,255,0.14)', filter:'blur(80px)', top:'10%', left:'50%', transform:'translateX(-50%)', pointerEvents:'none', zIndex:0 }} />
+
+        {/* Top bar */}
+        <div style={{ padding:'18px 32px', borderBottom:'1px solid rgba(255,255,255,0.07)', display:'flex', alignItems:'center', position:'relative', zIndex:1 }}>
+          <a href="/" style={{ display:'flex', alignItems:'center', gap:8, fontFamily:'Syne, sans-serif', fontWeight:800, fontSize:20, color:'#fff', textDecoration:'none' }}>
+            <div style={{ width:30, height:30, borderRadius:8, background:'linear-gradient(135deg,#6c63ff,#a78bfa)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15 }}>🚗</div>
+            Ariva
+          </a>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <div>
-            <label style={{ fontSize:12, color:'var(--muted)', display:'block', marginBottom:5 }}>Email</label>
-            <input
-              type="email" value={email}
-              onChange={e => setEmail(e.target.value)}
-              required disabled={isLocked}
-              style={{ width:'100%', padding:'8px 12px', fontSize:14 }}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize:12, color:'var(--muted)', display:'block', marginBottom:5 }}>Password</label>
-            <input
-              type="password" value={password}
-              onChange={e => setPassword(e.target.value)}
-              required disabled={isLocked}
-              style={{ width:'100%', padding:'8px 12px', fontSize:14 }}
-            />
-          </div>
+        {/* Form */}
+        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'40px 20px', position:'relative', zIndex:1 }}>
+          <div style={{ width:'100%', maxWidth:420 }}>
 
-          {error && (
-            <div style={{
-              fontSize:13, color:'var(--red)', background:'var(--red-bg)',
-              padding:'10px 12px', borderRadius:'var(--radius)', lineHeight:1.5,
-            }}>
-              <p>{error}</p>
-              {isLocked && countdown && (
-                <p style={{ marginTop:4, fontWeight:500, fontFamily:'monospace' }}>
-                  Time remaining: {countdown}
-                </p>
-              )}
+            <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.09)', borderRadius:16, padding:'40px 36px' }}>
+              <div style={{ marginBottom:30 }}>
+                <h1 style={{ fontFamily:'Syne, sans-serif', fontSize:24, fontWeight:700, marginBottom:6 }}>Welcome back</h1>
+                <p style={{ fontSize:14, color:'rgba(255,255,255,0.4)' }}>Sign in to your Ariva dashboard</p>
+              </div>
+
+              <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
+                <div>
+                  <label style={{ display:'block', fontSize:13, fontWeight:500, color:'rgba(255,255,255,0.7)', marginBottom:6 }}>Email address</label>
+                  <input
+                    type="email" value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required disabled={isLocked}
+                    placeholder="you@company.com"
+                    className="lp-login-input"
+                    style={{ width:'100%' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:13, fontWeight:500, color:'rgba(255,255,255,0.7)', marginBottom:6 }}>Password</label>
+                  <input
+                    type="password" value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required disabled={isLocked}
+                    placeholder="Your password"
+                    className="lp-login-input"
+                    style={{ width:'100%' }}
+                  />
+                </div>
+
+                {error && (
+                  <div style={{ background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.25)', borderRadius:8, padding:'10px 14px' }}>
+                    <p style={{ fontSize:13, color:'#fca5a5', lineHeight:1.5 }}>{error}</p>
+                    {isLocked && countdown && (
+                      <p style={{ marginTop:4, fontWeight:600, fontFamily:'monospace', fontSize:13, color:'#fca5a5' }}>
+                        Unlocks in: {countdown}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || isLocked}
+                  style={{
+                    marginTop:4, padding:'13px', textAlign:'center',
+                    background: isLocked ? 'rgba(255,255,255,0.06)' : '#6c63ff',
+                    color: isLocked ? 'rgba(255,255,255,0.35)' : '#fff',
+                    border: isLocked ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                    borderRadius:10, fontSize:15, fontWeight:500,
+                    fontFamily:'DM Sans, sans-serif', textAlign:'center',
+                    cursor: isLocked ? 'not-allowed' : 'pointer',
+                    transition:'all 0.2s',
+                  }}
+                >
+                  {loading ? 'Signing in...' : isLocked ? 'Account locked' : 'Sign in →'}
+                </button>
+              </form>
+
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:22 }}>
+                <a href="/forgot-password" style={{ fontSize:13, color:'rgba(255,255,255,0.4)', textDecoration:'none' }}>
+                  Forgot password?
+                </a>
+                <a href="/signup" style={{ fontSize:13, color:'#a78bfa', textDecoration:'none' }}>
+                  Create account
+                </a>
+              </div>
             </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || isLocked}
-            style={{
-              marginTop:4, padding:'10px', textAlign: 'center',
-              background: isLocked ? 'var(--gray-bg)' : 'var(--accent)',
-              color: isLocked ? 'var(--gray)' : '#fff',
-              border:'none', borderRadius:'var(--radius)',
-              fontSize:14, fontWeight:500,
-              cursor: isLocked ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {loading ? 'Signing in...' : isLocked ? 'Account locked' : 'Sign in'}
-          </button>
-        </form>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

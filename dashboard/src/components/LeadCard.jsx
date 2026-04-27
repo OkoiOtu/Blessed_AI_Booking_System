@@ -1,14 +1,14 @@
 'use client';
 import { timeAgo } from '../lib/formatters';
 import StatusBadge from './StatusBadge';
+import { api } from '../lib/api';
 
 export default function LeadCard({ lead, onStatusChange }) {
   const call = lead.expand?.call;
 
   async function updateStatus(newStatus) {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads/${lead.id}`, {
+    await api(`/leads/${lead.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
     onStatusChange?.();

@@ -3,8 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { timeAgo } from '@/lib/formatters';
 import StatusBadge from '@/components/StatusBadge';
 import CallDrawer from '@/components/CallDrawer';
-
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import { api } from '@/lib/api';
 
 export default function CallsPage() {
   const [calls,    setCalls]    = useState([]);
@@ -24,7 +23,7 @@ export default function CallsPage() {
       const params = new URLSearchParams({ page, perPage: PER_PAGE });
       if (fromDate) params.set('fromDate', fromDate);
       if (toDate)   params.set('toDate', toDate);
-      const res  = await fetch(`${API()}/calls?${params}`);
+      const res  = await api(`/calls?${params}`);
       const data = await res.json();
       setCalls(data.items ?? []);
       setTotal(data.totalItems ?? 0);

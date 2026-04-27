@@ -1,5 +1,6 @@
 import express from 'express';
 import { getClient } from '../services/pbService.js';
+import { buildFilter } from '../middleware/companyScope.js';
 
 const router = express.Router();
 
@@ -21,8 +22,9 @@ function toCSV(rows, headers) {
  */
 router.get('/bookings', async (req, res) => {
   try {
-    const pb    = await getClient();
-    const items = await pb.collection('bookings').getFullList({ sort: '-created', requestKey: null });
+    const pb     = await getClient();
+    const filter = buildFilter(req.companyId);
+    const items  = await pb.collection('bookings').getFullList({ filter, sort: '-created', requestKey: null });
 
     const headers = ['reference','caller_name','caller_phone','pickup_datetime','pickup_address','dropoff_address','duration_hours','status','quoted_price','quoted_currency','sms_sent','created'];
     const csv = toCSV(items, headers);
@@ -41,8 +43,9 @@ router.get('/bookings', async (req, res) => {
  */
 router.get('/leads', async (req, res) => {
   try {
-    const pb    = await getClient();
-    const items = await pb.collection('leads').getFullList({ sort: '-created', requestKey: null });
+    const pb     = await getClient();
+    const filter = buildFilter(req.companyId);
+    const items  = await pb.collection('leads').getFullList({ filter, sort: '-created', requestKey: null });
 
     const headers = ['caller_phone','summary','status','created'];
     const csv = toCSV(items, headers);
@@ -62,8 +65,9 @@ router.get('/leads', async (req, res) => {
  */
 router.get('/customers', async (req, res) => {
   try {
-    const pb    = await getClient();
-    const items = await pb.collection('bookings').getFullList({ sort: '-created', requestKey: null });
+    const pb     = await getClient();
+    const filter = buildFilter(req.companyId);
+    const items  = await pb.collection('bookings').getFullList({ filter, sort: '-created', requestKey: null });
 
     const byPhone = {};
     for (const b of items) {

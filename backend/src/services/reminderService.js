@@ -34,6 +34,16 @@ export async function sendReminders() {
 
     for (const booking of upcoming) {
       try {
+        // Mark before sending so a concurrent tick cannot pick up the same booking.
+        // If the SMS then fails, we skip this reminder rather than risk a duplicate.
+        const marked = await pb.collection('bookings').update(
+          booking.id,
+          { reminder_sent: true },
+          { filter: 'reminder_sent = false', requestKey: null }
+        ).catch(() => null);
+
+        if (!marked) continue; // another tick already claimed this booking
+
         const pickupTime = new Date(booking.pickup_datetime).toLocaleTimeString('en-NG', {
           hour: '2-digit', minute: '2-digit',
         });
@@ -46,7 +56,6 @@ export async function sendReminders() {
         ].join('\n');
 
         await client.messages.create({ body, from: FROM, to: booking.caller_phone });
-        await pb.collection('bookings').update(booking.id, { reminder_sent: true }, { requestKey: null });
         await logActivity('reminder_sent', booking.caller_phone, `1-hour reminder sent for booking ${booking.reference}`);
         console.info(`[reminders] Reminder sent for ${booking.reference}`);
       } catch (err) {

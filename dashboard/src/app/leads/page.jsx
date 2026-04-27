@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import LeadCard from '@/components/LeadCard';
-
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import { api } from '@/lib/api';
 const STATUSES = ['all', 'new', 'reviewed', 'closed'];
 
 export default function LeadsPage() {
@@ -24,7 +23,7 @@ export default function LeadsPage() {
       if (filter !== 'all') params.set('status', filter);
       if (fromDate) params.set('fromDate', fromDate);
       if (toDate)   params.set('toDate', toDate);
-      const res  = await fetch(`${API()}/leads?${params}`);
+      const res  = await api(`/leads?${params}`);
       const data = await res.json();
       setLeads(data.items ?? []);
       setTotal(data.totalItems ?? 0);
@@ -42,8 +41,13 @@ export default function LeadsPage() {
     return () => { mounted.current = false; clearInterval(interval); };
   }, [filter, page, fromDate, toDate]);
 
-  function downloadCSV() {
-    window.open(`${API()}/export/leads`);
+  async function downloadCSV() {
+    const res  = await api('/export/leads');
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'leads.csv'; a.click();
+    URL.revokeObjectURL(url);
   }
 
   const totalPages = Math.ceil(total / PER_PAGE);

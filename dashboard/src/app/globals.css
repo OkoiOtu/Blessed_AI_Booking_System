@@ -92,7 +92,7 @@ button {
   background: var(--surface);
   color: var(--text);
   transition: background 0.15s, opacity 0.15s;
-  text-align: left;
+  text-align: center;
   -webkit-appearance: none;
   appearance: none;
 }

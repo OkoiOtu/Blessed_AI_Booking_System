@@ -1,4 +1,4 @@
-import { createCall, createBooking, createLead, markSmsSent } from './pbService.js';
+import { getClient, createCall, createBooking, createLead, markSmsSent } from './pbService.js';
 import { sendCustomerConfirmation, sendAdminAlert } from './smsService.js';
 import { formatE164, isValidPhone } from '../utils/phoneUtils.js';
 import { generateBookingRef } from '../utils/bookingUtils.js';
@@ -8,6 +8,29 @@ import { logActivity } from './activityLogger.js';
 
 const MIN_HOURS = 1;
 const MAX_HOURS = 12;
+
+const PLAN_LIMITS = { starter: 50, professional: Infinity, enterprise: Infinity };
+
+async function isBookingLimitReached(companyId) {
+  if (!companyId) return false;
+  try {
+    const pb      = await getClient();
+    const company = await pb.collection('companies').getOne(companyId, { requestKey: null });
+    const limit   = PLAN_LIMITS[company.plan] ?? Infinity;
+    if (!isFinite(limit)) return false;
+
+    const now      = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const count    = await pb.collection('bookings').getList(1, 1, {
+      filter: `company_id = "${companyId}" && created >= "${firstDay} 00:00:00"`,
+      requestKey: null,
+    });
+    return count.totalItems >= limit;
+  } catch (err) {
+    console.error('[bookingService] isBookingLimitReached error:', err.message);
+    return false;
+  }
+}
 
 function qualifyBooking(data) {
   const { callerName, pickupDatetime, pickupAddress, durationHours } = data;
@@ -24,7 +47,7 @@ function qualifyBooking(data) {
   return { valid: true };
 }
 
-export async function processCall(message) {
+export async function processCall(message, companyId = null) {
   const { call, artifact, analysis } = message;
   const rawPhone   = call?.customer?.number ?? '';
   const callerPhone = formatE164(rawPhone);
@@ -37,8 +60,22 @@ export async function processCall(message) {
     ? Math.round((new Date(call.endedAt) - new Date(call.startedAt)) / 1000)
     : 0;
 
+  const vapiCallId = call?.id ?? '';
+
+  // Idempotency: if Vapi retries the webhook, skip the duplicate delivery.
+  if (vapiCallId) {
+    try {
+      const pb = await getClient();
+      await pb.collection('calls').getFirstListItem(
+        `vapi_call_id = "${vapiCallId}"`, { requestKey: null }
+      );
+      console.info(`[bookingService] Duplicate webhook for call ${vapiCallId} — skipping`);
+      return;
+    } catch { /* not found = first delivery, continue */ }
+  }
+
   const callRecord = await createCall({
-    vapi_call_id:  call?.id ?? '',
+    vapi_call_id:  vapiCallId,
     caller_phone:  callerPhone,
     transcript:    artifact?.transcript ?? '',
     recording_url: artifact?.recordingUrl ?? '',
@@ -54,13 +91,18 @@ export async function processCall(message) {
 
   const qualification = qualifyBooking(structured);
   if (qualification.valid) {
-    await handleConfirmedBooking(callRecord, structured, callerPhone, vehicleType);
+    await handleConfirmedBooking(callRecord, structured, callerPhone, vehicleType, companyId);
   } else {
     await handleLead(callRecord, structured, callerPhone, qualification.reason);
   }
 }
 
-async function handleConfirmedBooking(callRecord, data, callerPhone, vehicleType = 'any') {
+async function handleConfirmedBooking(callRecord, data, callerPhone, vehicleType = 'any', companyId = null) {
+  if (await isBookingLimitReached(companyId)) {
+    console.warn(`[bookingService] Booking limit reached for company ${companyId} — logging as lead`);
+    await handleLead(callRecord, data, callerPhone, 'plan_limit_reached');
+    return;
+  }
   const reference   = generateBookingRef();
   const cancelToken = generateCancelToken();
 

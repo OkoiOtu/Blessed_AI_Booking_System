@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { formatDatetime, formatDuration, formatPhone } from '@/lib/formatters';
 import StatusBadge from './StatusBadge';
+import { api } from '@/lib/api';
 
 export default function BookingDetailModal({ booking, onClose, onCancelled }) {
   const [cancelling,        setCancelling]        = useState(false);
@@ -31,11 +32,9 @@ export default function BookingDetailModal({ booking, onClose, onCancelled }) {
     setCancelling(true);
     setCancelError('');
     try {
-      const url  = process.env.NEXT_PUBLIC_API_URL + '/bookings/' + booking.id + '/cancel';
-      const res  = await fetch(url, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ actor: 'admin' }),
+      const res  = await api(`/bookings/${booking.id}/cancel`, {
+        method: 'POST',
+        body:   JSON.stringify({ actor: 'admin' }),
       });
       const data = await res.json();
       if (!res.ok) { setCancelError(data.error ?? 'Failed to cancel'); return; }

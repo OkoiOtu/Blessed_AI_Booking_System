@@ -10,9 +10,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = pb.authStore.onChange((token, model) => {
+    const unsub = pb.authStore.onChange((_token, model) => {
       setUser(model);
     });
+
+    // No stored session — don't force a refresh request.
+    if (!pb.authStore.token) {
+      setLoading(false);
+      return unsub;
+    }
 
     pb.collection('users').authRefresh()
       .then(auth => {
@@ -23,7 +29,16 @@ export function AuthProvider({ children }) {
           setUser(auth.record);
         }
       })
-      .catch(() => pb.authStore.clear())
+      .catch(err => {
+        console.warn('[auth] authRefresh failed:', err?.message ?? err);
+        if (!pb.authStore.isValid) {
+          pb.authStore.clear();
+          setUser(null);
+        } else {
+          // Keep the restored auth model on transient refresh failures.
+          setUser(pb.authStore.model);
+        }
+      })
       .finally(() => setLoading(false));
 
     return unsub;
@@ -32,29 +47,34 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const auth = await pb.collection('users').authWithPassword(email, password);
 
-    // Block suspended users
     if (auth.record?.suspended) {
       pb.authStore.clear();
-      // Log the suspended attempt
       const name = auth.record.full_name || auth.record.email;
-      await logEvent(
-        'login_suspended',
-        name,
-        `Suspended account attempted login: ${auth.record.email}`
-      );
+      await logEvent('login_suspended', name, `Suspended account attempted login: ${auth.record.email}`);
       throw new Error('SUSPENDED');
     }
 
-    // Log successful login
-    const name = auth.record.full_name || auth.record.email;
-    await logEvent(
-      'login_success',
-      name,
-      `${auth.record.email} signed in successfully`
-    );
+    if (!auth.record?.verified) {
+      pb.authStore.clear();
+      throw new Error('UNVERIFIED');
+    }
 
+    const name = auth.record.full_name || auth.record.email;
+    await logEvent('login_success', name, `${auth.record.email} signed in`);
     setUser(auth.record);
     return auth.record;
+  }
+
+  async function sendVerificationEmail(email) {
+    await pb.collection('users').requestVerification(email);
+  }
+
+  async function requestPasswordReset(email) {
+    await pb.collection('users').requestPasswordReset(email);
+  }
+
+  async function confirmPasswordReset(token, password) {
+    await pb.collection('users').confirmPasswordReset(token, password, password);
   }
 
   function logout() {
@@ -63,7 +83,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, sendVerificationEmail, requestPasswordReset, confirmPasswordReset }}>
       {children}
     </AuthContext.Provider>
   );
@@ -77,9 +97,7 @@ export function useAuth() {
 
 export function getInitials(user) {
   if (!user) return '?';
-  if (user.full_name) {
-    return user.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  }
+  if (user.full_name) return user.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   return user.email?.[0]?.toUpperCase() ?? '?';
 }
 
@@ -88,7 +106,59 @@ export function getDisplayName(user) {
   return user.full_name || user.email || '';
 }
 
-// Returns true if user has admin-level access (admin or super_admin)
-export function isAdminUser(user) {
-  return user?.role === 'admin' || user?.role === 'super_admin';
+/**
+ * Role hierarchy: author > super_admin > admin > user
+ */
+export function isAuthor(user)      { return user?.role === 'author'; }
+export function isSuperAdmin(user)  { return user?.role === 'super_admin' || isAuthor(user); }
+export function isAdminUser(user)   { return ['author','super_admin','admin'].includes(user?.role); }
+export function canManageUsers(user){ return ['author','super_admin','admin'].includes(user?.role); }
+export function canManageCompany(user){ return ['author','super_admin'].includes(user?.role); }
+
+/**
+ * What roles a user can create based on their own role:
+ * super_admin → can create admin and user
+ * admin       → can only create user
+ */
+export function creatableRoles(user) {
+  if (isAuthor(user) || isSuperAdmin(user)) return ['admin','user'];
+  if (user?.role === 'admin')               return ['user'];
+  return [];
+}
+
+/**
+ * Password strength checker
+ * Returns { score: 0-4, label, color, tips }
+ */
+export function checkPasswordStrength(password) {
+  if (!password) return { score:0, label:'', color:'transparent', tips:[] };
+
+  const tips = [];
+  let score  = 0;
+
+  if (password.length >= 8)  score++;
+  else tips.push('At least 8 characters');
+
+  if (password.length >= 12) score++;
+  else if (password.length >= 8) tips.push('12+ characters is stronger');
+
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
+  else tips.push('Mix uppercase and lowercase letters');
+
+  if (/[0-9]/.test(password)) score++;
+  else tips.push('Add at least one number');
+
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  else tips.push('Add a special character (!@#$...)');
+
+  const weak = ['password','12345678','qwerty','letmein','welcome','admin123','pass1234'];
+  if (weak.some(w => password.toLowerCase().includes(w))) {
+    score = Math.min(score, 1);
+    tips.unshift('Avoid common passwords');
+  }
+
+  const capped = Math.min(score, 4);
+  const labels = ['','Weak','Fair','Good','Strong'];
+  const colors = ['transparent','#ef4444','#f97316','#eab308','#22c55e'];
+  return { score:capped, label:labels[capped], color:colors[capped], tips:tips.slice(0,3) };
 }

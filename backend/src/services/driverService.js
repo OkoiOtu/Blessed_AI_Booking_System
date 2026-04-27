@@ -75,8 +75,21 @@ export async function assignDriver(bookingId, driverId, actorName = 'admin') {
     };
   }
 
-  // Assign the driver
-  await pb.collection('bookings').update(bookingId, { driver: driverId }, { requestKey: null });
+  // Assign the driver with an optimistic lock: only update if no driver is currently set.
+  // This prevents two concurrent requests from double-assigning the same driver.
+  try {
+    await pb.collection('bookings').update(
+      bookingId,
+      { driver: driverId },
+      { filter: 'driver = ""', requestKey: null }
+    );
+  } catch (err) {
+    if (err.status === 404) {
+      // The filter found no match — another request already assigned a driver.
+      return { success: false, conflict: { reason: 'already_assigned' } };
+    }
+    throw err;
+  }
 
   // Update driver status to assigned (if currently available)
   if (driver.status === 'available') {

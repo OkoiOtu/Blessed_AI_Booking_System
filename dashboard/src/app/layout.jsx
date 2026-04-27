@@ -5,9 +5,10 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { AuthProvider, useAuth, getInitials, getDisplayName } from '@/lib/auth';
 import RightSidebar from '@/components/RightSidebar';
+import { CompanyProvider, useCompany } from '@/lib/companyContext';
 
 const NAV = [
-  { href:'/',          label:'Overview',      icon:'grid_view'                     },
+  { href:'/dashboard', label:'Overview',      icon:'grid_view'                     },
   { href:'/bookings',  label:'Bookings',      icon:'event_available'               },
   { href:'/leads',     label:'Leads',         icon:'contact_phone'                 },
   { href:'/calls',     label:'All calls',     icon:'call_log'                      },
@@ -18,13 +19,15 @@ const NAV = [
 
   { href:'/drivers',   label:'Drivers',       icon:'airline_seat_recline_normal' },
   { href:'/pricing',   label:'Pricing',       icon:'payments'                    },
-  { href:'/users',     label:'Users',         icon:'group',  adminOnly:true      },
+  { href:'/users',       label:'Users',         icon:'group',    adminOnly:true    },
+  { href:'/companies',   label:'Companies',     icon:'domain',   authorOnly:true },
 ];
 
-const PUBLIC_PATHS = ['/login', '/cancel'];
+const PUBLIC_PATHS = ['/login', '/signup', '/cancel', '/forgot-password', '/reset-password', '/verify-email', '/plans', '/checkout'];
+const LANDING_PATH = '/';
 
 function isAdmin(user) {
-  return user?.role === 'admin' || user?.role === 'super_admin';
+  return ['admin','super_admin','author'].includes(user?.role);
 }
 
 function Icon({ name, size=20 }) {
@@ -111,26 +114,55 @@ function SideBtn({ icon, label, collapsed, onClick, style={} }) {
   );
 }
 
-function SidebarContent({ collapsed, theme, toggleTheme, user, onSignOut, onNavClick }) {
+function SidebarContent({ collapsed, theme, toggleTheme, user, company, onSignOut, onNavClick }) {
   const pathname = usePathname();
   const initials = getInitials(user);
   const display  = getDisplayName(user);
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
-      <div style={{ padding: collapsed ? '16px 0' : '16px 16px', borderBottom:'0.5px solid var(--border)', flexShrink:0, minHeight:60, display:'flex', alignItems:'center', justifyContent:'center' }}>
-        {!collapsed && (
-          <div style={{ flex:1 }}>
-            <p style={{ fontSize:14, fontWeight:500 }}>AI Booking</p>
-            <p style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Admin dashboard</p>
+      {collapsed ? (
+        <div style={{ height:52, borderBottom:'0.5px solid var(--border)', flexShrink:0 }} />
+      ) : (
+        <div style={{ padding:'12px 14px', borderBottom:'0.5px solid var(--border)', flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            {/* Ariva brand mark */}
+            <div style={{ width:28, height:28, borderRadius:7, flexShrink:0, background:'linear-gradient(135deg,#6c63ff,#a78bfa)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>🚗</div>
+            <p style={{ fontSize:13, fontWeight:700, color:'var(--accent)', letterSpacing:'-0.01em', lineHeight:1.2 }}>
+              Ariva
+            </p>
           </div>
-        )}
-        {collapsed && <Icon name="directions_car" size={22} />}
-      </div>
+
+          {company && (
+            <div style={{ marginTop:3, overflow:'hidden', whiteSpace:'nowrap' }}>
+              <div style={{ display:'inline-block', fontSize:12, fontWeight:500, animation:'companyMarqueeLeft 10s linear infinite' }}>
+                {company.name}
+              </div>
+            </div>
+          )}
+          {company && (
+            <p style={{ fontSize:10, color:'var(--muted)', marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.2 }}>
+              {company.plan ?? 'starter'} plan
+            </p>
+          )}
+
+          <style>{`
+            @keyframes companyMarqueeLeft {
+              0%   { transform: translateX(110%); }
+              100% { transform: translateX(-110%); }
+            }
+          `}</style>
+        </div>
+      )}
 
       <nav style={{ flex:1, padding: collapsed ? '8px 6px' : '8px 8px', display:'flex', flexDirection:'column', gap:2, overflowY:'auto' }}>
-        {NAV.filter(n => !n.adminOnly || isAdmin(user)).map(({ href, label, icon }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+        {NAV.filter(n => {
+          if (n.authorOnly) return user?.role === 'author';
+          if (n.superAdminOnly) return user?.role === 'super_admin' || user?.role === 'author';
+          if (n.adminOnly) return isAdmin(user);
+          return true;
+        }).map(({ href, label, icon }) => {
+          const active = href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
           return <NavItem key={href} href={href} label={label} icon={icon} active={active} collapsed={collapsed} onClick={onNavClick} />;
         })}
       </nav>
@@ -143,7 +175,10 @@ function SidebarContent({ collapsed, theme, toggleTheme, user, onSignOut, onNavC
           {!collapsed && (
             <div style={{ overflow:'hidden', flex:1 }}>
               <p style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{display}</p>
-              <p style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{user?.role?.replace('_',' ')}</p>
+              <p style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>
+                {user?.role?.replace('_',' ')}
+                {user?.role === 'author' && <span style={{ marginLeft:6, fontSize:10, background:'linear-gradient(135deg,#6c63ff,#a78bfa)', color:'#fff', padding:'1px 6px', borderRadius:20 }}>Dev</span>}
+              </p>
             </div>
           )}
         </div>
@@ -180,9 +215,10 @@ function SidebarContent({ collapsed, theme, toggleTheme, user, onSignOut, onNavC
 
 function Shell({ children }) {
   const { user, loading, logout } = useAuth();
+  const { company } = useCompany();
   const router   = useRouter();
   const pathname = usePathname();
-  const isPublic = PUBLIC_PATHS.some(p => pathname.startsWith(p));
+  const isPublic = pathname === LANDING_PATH || PUBLIC_PATHS.some(p => pathname.startsWith(p));
 
   const [theme,        setTheme]        = useState('light');
   const [collapsed,    setCollapsed]    = useState(false);
@@ -225,16 +261,22 @@ function Shell({ children }) {
 
   useEffect(() => {
     if (loading) return;
+
+    // User is authenticated — clear any previous redirect lock.
+    if (user) {
+      didRedirect.current = false;
+    }
+
     // Only redirect once per auth state change
     if (!user && !isPublic && !didRedirect.current) {
       didRedirect.current = true;
       router.replace('/login');
     }
-    if (user && isPublic) {
-      didRedirect.current = false;
-      router.replace('/');
+    // Keep landing page accessible; only auto-redirect logged-in users away from signup.
+    if (user && pathname.startsWith('/signup')) {
+      router.replace('/dashboard');
     }
-  }, [user, loading, isPublic]);
+  }, [user, loading, isPublic, pathname, router]);
 
   // Reset logout dialog and redirect flag on pathname change
   useEffect(() => {
@@ -282,7 +324,7 @@ function Shell({ children }) {
           }}>
             <Icon name={collapsed ? 'menu' : 'chevron_left'} size={16} />
           </button>
-          <SidebarContent collapsed={collapsed} theme={theme} toggleTheme={toggleTheme} user={user} onSignOut={() => setShowLogout(true)} />
+          <SidebarContent collapsed={collapsed} theme={theme} toggleTheme={toggleTheme} user={user} company={company} onSignOut={() => setShowLogout(true)} />
         </aside>
       )}
 
@@ -294,7 +336,7 @@ function Shell({ children }) {
           transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
           transition:'transform 0.25s ease', overflowY:'auto',
         }}>
-          <SidebarContent collapsed={false} theme={theme} toggleTheme={toggleTheme} user={user}
+          <SidebarContent collapsed={false} theme={theme} toggleTheme={toggleTheme} user={user} company={company}
             onSignOut={() => setShowLogout(true)} onNavClick={() => setMobileOpen(false)} />
         </aside>
       )}
@@ -346,7 +388,9 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <AuthProvider>
-          <Shell>{children}</Shell>
+          <CompanyProvider>
+            <Shell>{children}</Shell>
+          </CompanyProvider>
         </AuthProvider>
       </body>
     </html>

@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { BookingLimitBanner } from '@/components/PlanGate';
+import { useCompany } from '@/lib/companyContext';
+import { canAccess } from '@/components/PlanGate';
 import BookingTable from '@/components/BookingTable';
 import BookingDetailModal from '@/components/BookingDetailModal';
-
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import { api } from '@/lib/api';
 
 export default function BookingsPage() {
   const today    = new Date().toISOString().slice(0,10);
@@ -18,6 +20,10 @@ export default function BookingsPage() {
   const [detailing, setDetailing] = useState(null);
   const mounted = useRef(false);
   const PER_PAGE = 20;
+  const { company } = useCompany();
+  const plan = company?.plan ?? 'starter';
+  const bookingsAllowed = canAccess(plan, 'bookings');
+  const maxBookings = plan === 'starter' ? 50 : null;
 
   async function load() {
     if (!mounted.current) return;
@@ -27,7 +33,7 @@ export default function BookingsPage() {
       if (query)    params.set('search', query);
       if (fromDate) params.set('fromDate', fromDate);
       if (toDate)   params.set('toDate', toDate);
-      const res  = await fetch(`${API()}/bookings?${params}`);
+      const res  = await api(`/bookings?${params}`);
       const data = await res.json();
       setBookings(data.items ?? []);
       setTotal(data.totalItems ?? 0);
@@ -93,6 +99,8 @@ export default function BookingsPage() {
           <button onClick={() => { setFromDate(''); setToDate(''); setPage(1); }} style={{ fontSize:12, padding:'5px 10px' }}>Clear filter</button>
         )}
       </div>
+
+      <BookingLimitBanner total={total} />
 
       <div style={{ background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
         <div className="table-scroll">

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import StatusBadge from '@/components/StatusBadge';
 import BookingDetailModal from '@/components/BookingDetailModal';
 
-const API = () => process.env.NEXT_PUBLIC_API_URL;
+import { api } from '@/lib/api';
 
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -35,7 +35,7 @@ export default function CalendarPage() {
     setLoading(true);
     try {
       // Fetch all bookings (we'll filter by month client-side)
-      const res  = await fetch(`${API()}/bookings?perPage=200`);
+      const res  = await api('/bookings?perPage=200');
       const data = await res.json();
       setBookings(data.items ?? []);
     } catch (err) {
