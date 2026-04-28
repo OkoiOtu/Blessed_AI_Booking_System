@@ -224,6 +224,7 @@ function Shell({ children }) {
   const [collapsed,    setCollapsed]    = useState(false);
   const [mobileOpen,   setMobileOpen]   = useState(false);
   const [showLogout,   setShowLogout]   = useState(false);
+  const [loggingOut,   setLoggingOut]   = useState(false);
   const [isMobile,     setIsMobile]     = useState(false);
   const [hideRightBar, setHideRightBar] = useState(false);
   const didRedirect = useRef(false);
@@ -234,6 +235,10 @@ function Shell({ children }) {
     setTheme(savedTheme);
     setCollapsed(savedCollapsed);
     document.documentElement.setAttribute('data-theme', savedTheme);
+
+    // Reveal Material Symbols icons only after the font file has loaded.
+    // Without this, icon ligature text (e.g. "event_available") flashes on first load.
+    document.fonts.ready.then(() => document.body.classList.add('fonts-loaded'));
 
     const mqMobile = window.matchMedia('(max-width: 768px)');
     const mqNarrow = window.matchMedia('(max-width: 1050px)');
@@ -284,8 +289,8 @@ function Shell({ children }) {
     setMobileOpen(false);
   }, [pathname]);
 
-  // Show spinner while auth state is loading — prevents dashboard flash
-  if (loading) return <LoadingSpinner />;
+  // Show spinner while auth is loading or logout is in progress
+  if (loading || loggingOut) return <LoadingSpinner />;
 
   if (isPublic || !user) return <>{children}</>;
 
@@ -294,6 +299,7 @@ function Shell({ children }) {
 
   function handleLogout() {
     setShowLogout(false);
+    setLoggingOut(true);
     didRedirect.current = false;
     logout();
     router.replace('/login');

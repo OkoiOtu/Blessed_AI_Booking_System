@@ -201,4 +201,9 @@ button.danger   { background: var(--red-bg); color: var(--red); border-color: tr
   -webkit-font-smoothing: antialiased;
   flex-shrink: 0;
   user-select: none;
+  /* Hide icon text until the font file has loaded — prevents "event_available" raw text flash */
+  visibility: hidden;
+}
+body.fonts-loaded .material-symbols-outlined {
+  visibility: visible;
 }
