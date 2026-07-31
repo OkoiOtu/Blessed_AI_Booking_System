@@ -56,7 +56,7 @@
 html, body { height: 100%; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Font is now set in layout.jsx using Inter from Google Fonts */
   font-size: 14px;
   background: var(--bg);
   color: var(--text);
