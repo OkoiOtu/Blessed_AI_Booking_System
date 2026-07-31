@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   /* ── Colors ── */
@@ -73,7 +73,7 @@
 
   /* ── Typography ── */
   --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-head:  'Syne', var(--font-sans);
+  --font-head:  'Inter', var(--font-sans);
   --font-mono:  'JetBrains Mono', 'Fira Code', monospace;
 
   --text-xs:   12px;
